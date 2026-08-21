@@ -42,10 +42,85 @@ loadData();
 
 client.once(Events.ClientReady, c => {
   console.log(`Logged in as ${c.user.tag}`);
+  startAutoVouch();
 });
 
 function isAdmin(interaction) {
   return interaction.member.permissions.has('Administrator');
+}
+
+// Auto-vouch scheduler - sends vouch every 7-10 minutes randomly
+function startAutoVouch() {
+  const minInterval = 7 * 60 * 1000; // 7 minutes
+  const maxInterval = 10 * 60 * 1000; // 10 minutes
+  
+  function sendAutoVouch() {
+    if (!data.vouchChannel) {
+      setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
+      return;
+    }
+    
+    const channel = client.channels.cache.get(data.vouchChannel);
+    if (!channel) {
+      setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
+      return;
+    }
+    
+    // Select random verified user
+    const verifiedIds = data.verifiedUsers ? Object.keys(data.verifiedUsers).filter(id => {
+      const numericId = parseInt(id, 10);
+      return !isNaN(numericId) && numericId > 0;
+    }) : [];
+    
+    let selectedUser = null;
+    if (verifiedIds && verifiedIds.length > 0) {
+      selectedUser = verifiedIds[Math.floor(Math.random() * verifiedIds.length)];
+    }
+    
+    if (!selectedUser) {
+      setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
+      return;
+    }
+    
+    const user = client.users.cache.get(selectedUser);
+    if (!user) {
+      setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
+      return;
+    }
+    
+    const vouchMessages = [
+      'Great service, fast and reliable!',
+      'Highly recommended, will definitely use again.',
+      'Excellent experience, very professional.',
+      'Fast and efficient, thanks!',
+      'Great dealing with this user, 10/10.',
+      'Very trustworthy and professional.',
+      'Smooth transaction, no issues at all.',
+      'Reliable and prompt, would vouch again.'
+    ];
+    
+    const randomMessage = vouchMessages[Math.floor(Math.random() * vouchMessages.length)];
+    const rating = Math.floor(Math.random() * 5) + 1;
+    
+    const embed = new EmbedBuilder()
+      .setColor('#0099ff')
+      .setTitle('💠 Auto Vouch')
+      .setDescription(`**Vouched For:** <@${selectedUser}>`)
+      .addFields(
+        { name: 'Vouch', value: randomMessage, inline: false },
+        { name: 'Vouched By', value: 'Auto System', inline: true },
+        { name: 'Rating', value: `⭐⭐⭐⭐⭐`, inline: true }
+      )
+      .setTimestamp();
+    
+    channel.send({ embeds: [embed] }).catch(() => {});
+    
+    // Schedule next auto-vouch
+    setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
+  }
+  
+  // Start with random initial delay
+  setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
 }
 
 // ===== SLASH COMMAND: /vouch =====
