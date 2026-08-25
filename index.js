@@ -274,6 +274,42 @@ client.on('messageCreate', async message => {
     saveData();
     message.reply(`✅ Vouch channel set to <#${channelId}>`);
   }
+  
+  if (cmd === 'deal') {
+    if (!isAdmin(message)) {
+      return message.reply('❌ Only administrators can use this command.');
+    }
+    
+    const paymentArg = args[0] || 'usdt';
+    const paymentMethod = paymentArg.toLowerCase();
+    const amount = args[1] || '55.00';
+    const sender = args[2] || 'Anonymous';
+    const receiver = args[3] || 'Anonymous';
+    const txHash = args[4] || '0xdbe0...' + Math.floor(Math.random() * 999999).toString(16).padStart(6, '0');
+    const image = args[5] || 'https://discord.com/assets Discord.IO_logo_292.png';
+    
+    const embed = new EmbedBuilder()
+      .setColor('#0099ff')
+      .setTitle('💰 Deal Completed')
+      .setDescription(`**Payment Method:** ${paymentMethod.toUpperCase()}`)
+      .addFields(
+        { name: 'Amount', value: `${amount} ${paymentMethod.toUpperCase()}` },
+        { name: 'Sender', value: sender },
+        { name: 'Receiver', value: receiver },
+        { name: 'Transaction', value: txHash, inline: true }
+      )
+      .setThumbnail(image)
+      .setTimestamp();
+    
+    if (data.vouchChannel) {
+      const channel = message.client.channels.cache.get(data.vouchChannel);
+      if (channel) {
+        channel.send({ embeds: [embed] });
+      }
+    }
+    
+    message.reply(`✅ Deal embed sent to <#${data.vouchChannel}>`);
+  }
 });
 
 client.login(process.env.DISCORD_TOKEN);
