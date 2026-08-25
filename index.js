@@ -42,31 +42,34 @@ loadData();
 
 client.once(Events.ClientReady, c => {
   console.log(`Logged in as ${c.user.tag}`);
-  startAutoVouch();
+  startAutoDeal();
 });
 
 function isAdmin(interaction) {
   return interaction.member.permissions.has('Administrator');
 }
 
-// Auto-vouch scheduler - sends vouch every 7-10 minutes randomly
-function startAutoVouch() {
-  const minInterval = 7 * 60 * 1000; // 7 minutes
+// Auto-deal scheduler - sends USDT/crypto deal embeds every 5-10 minutes randomly
+function startAutoDeal() {
+  const minInterval = 5 * 60 * 1000; // 5 minutes
   const maxInterval = 10 * 60 * 1000; // 10 minutes
   
-  function sendAutoVouch() {
+  // Payment methods to randomly choose from
+  const paymentMethods = ['usdt', 'cashapp', 'paypal', 'venmo', 'unidentified'];
+  
+  function sendAutoDeal() {
     if (!data.vouchChannel) {
-      setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
+      setTimeout(sendAutoDeal, Math.random() * (maxInterval - minInterval) + minInterval);
       return;
     }
     
     const channel = client.channels.cache.get(data.vouchChannel);
     if (!channel) {
-      setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
+      setTimeout(sendAutoDeal, Math.random() * (maxInterval - minInterval) + minInterval);
       return;
     }
     
-    // Select random verified user
+    // Select random verified user or use Anonymous
     const verifiedIds = data.verifiedUsers ? Object.keys(data.verifiedUsers).filter(id => {
       const numericId = parseInt(id, 10);
       return !isNaN(numericId) && numericId > 0;
@@ -75,52 +78,48 @@ function startAutoVouch() {
     let selectedUser = null;
     if (verifiedIds && verifiedIds.length > 0) {
       selectedUser = verifiedIds[Math.floor(Math.random() * verifiedIds.length)];
-    }
-    
-    if (!selectedUser) {
-      setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
-      return;
+    } else {
+      selectedUser = '0'; // Use Anonymous
     }
     
     const user = client.users.cache.get(selectedUser);
-    if (!user) {
-      setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
-      return;
-    }
+    const sender = user ? user.tag : 'Anonymous';
+    const receiver = 'Anonymous';
     
-    const vouchMessages = [
-      'Great service, fast and reliable!',
-      'Highly recommended, will definitely use again.',
-      'Excellent experience, very professional.',
-      'Fast and efficient, thanks!',
-      'Great dealing with this user, 10/10.',
-      'Very trustworthy and professional.',
-      'Smooth transaction, no issues at all.',
-      'Reliable and prompt, would vouch again.'
+    // Random payment method and amount
+    const paymentMethod = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
+    const amount = (Math.random() * 100 + 10).toFixed(2); // $10-$110
+    const txHash = '0xdbe0' + Math.floor(Math.random() * 999999).toString(16).padStart(6, '0');
+    
+    // Image URL (Discord default or random)
+    const images = [
+      'https://discord.com/assets Discord.IO_logo_292.png',
+      'https://discord.com/assets misty_png.png',
+      'https://discord.com/assets play_button_png.png'
     ];
-    
-    const randomMessage = vouchMessages[Math.floor(Math.random() * vouchMessages.length)];
-    const rating = Math.floor(Math.random() * 5) + 1;
+    const image = images[Math.floor(Math.random() * images.length)];
     
     const embed = new EmbedBuilder()
       .setColor('#0099ff')
-      .setTitle('💠 Auto Vouch')
-      .setDescription(`**Vouched For:** <@${selectedUser}>`)
+      .setTitle('💰 Deal Completed')
+      .setDescription(`**Payment Method:** ${paymentMethod.toUpperCase()}`)
       .addFields(
-        { name: 'Vouch', value: randomMessage, inline: false },
-        { name: 'Vouched By', value: 'Auto System', inline: true },
-        { name: 'Rating', value: `⭐⭐⭐⭐⭐`, inline: true }
+        { name: 'Amount', value: `${amount} ${paymentMethod.toUpperCase()}` },
+        { name: 'Sender', value: sender },
+        { name: 'Receiver', value: receiver },
+        { name: 'Transaction', value: txHash, inline: true }
       )
+      .setThumbnail(image)
       .setTimestamp();
     
-    channel.send({ embeds: [embed] }).catch(() => {});
+    channel.send({ embeds: [embed] }).catch(console.error);
     
-    // Schedule next auto-vouch
-    setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
+    // Schedule next auto-deal
+    setTimeout(sendAutoDeal, Math.random() * (maxInterval - minInterval) + minInterval);
   }
   
   // Start with random initial delay
-  setTimeout(sendAutoVouch, Math.random() * (maxInterval - minInterval) + minInterval);
+  setTimeout(sendAutoDeal, Math.random() * (maxInterval - minInterval) + minInterval);
 }
 
 // ===== SLASH COMMAND: /vouch =====
@@ -285,8 +284,7 @@ client.on('messageCreate', async message => {
     const amount = args[1] || '55.00';
     const sender = args[2] || 'Anonymous';
     const receiver = args[3] || 'Anonymous';
-    const txHash = args[4] || '0xdbe0...' + Math.floor(Math.random() * 999999).toString(16).padStart(6, '0');
-    const image = args[5] || 'https://discord.com/assets Discord.IO_logo_292.png';
+    const txHash = args[4] || '0xdbe0' + Math.floor(Math.random() * 999999).toString(16).padStart(6, '0');
     
     const embed = new EmbedBuilder()
       .setColor('#0099ff')
@@ -298,7 +296,6 @@ client.on('messageCreate', async message => {
         { name: 'Receiver', value: receiver },
         { name: 'Transaction', value: txHash, inline: true }
       )
-      .setThumbnail(image)
       .setTimestamp();
     
     if (data.vouchChannel) {
