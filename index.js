@@ -49,16 +49,29 @@ function isAdmin(interaction) {
   return interaction.member.permissions.has('Administrator');
 }
 
-// Payment methods array - includes crypto and fiat
+// Extensive payment methods array - includes ALL crypto and fiat
 const paymentMethods = [
-  { name: 'litecoin', symbol: 'LTC' },
-  { name: 'cashapp', symbol: '$' },
-  { name: 'zelle', symbol: 'Z' },
-  { name: 'venmo', symbol: '🅥' },
-  { name: 'usdt', symbol: '₿' },
-  { name: 'bitcoin', symbol: '₿' },
-  { name: 'ethereum', symbol: 'Ξ' },
-  { name: 'unidentified', symbol: '?' }
+  // Crypto
+  { name: 'bitcoin', symbol: '₿', isCrypto: true },
+  { name: 'ethereum', symbol: 'Ξ', isCrypto: true },
+  { name: 'litecoin', symbol: 'Ł', isCrypto: true },
+  { name: 'bitcoin-cash', symbol: 'BCH', isCrypto: true },
+  { name: 'ripple', symbol: 'XRP', isCrypto: true },
+  { name: 'litecoin', symbol: 'LTC', isCrypto: true },
+  { name: 'dogecoin', symbol: 'DOGE', isCrypto: true },
+  { name: 'cardano', symbol: 'ADA', isCrypto: true },
+  { name: 'solana', symbol: 'SOL', isCrypto: true },
+  { name: 'doge', symbol: '˚ƒ', isCrypto: true },
+  // Fiat/Fiat-like
+  { name: 'usdt', symbol: '₿', isCrypto: true },
+  { name: 'usdc', symbol: 'ⱃ', isCrypto: true },
+  { name: 'cashapp', symbol: '$', isCrypto: false },
+  { name: 'zelle', symbol: 'Z', isCrypto: false },
+  { name: 'venmo', symbol: '🅥', isCrypto: false },
+  { name: 'paypal', symbol: '💲', isCrypto: false },
+  { name: 'wire-transfer', symbol: '↯', isCrypto: false },
+  { name: 'gift-card', symbol: '🎁', isCrypto: false },
+  { name: 'unidentified', symbol: '?', isCrypto: false }
 ];
 
 // Auto-deal scheduler - sends deal embeds every 5-10 minutes randomly
@@ -81,32 +94,45 @@ function startAutoDeal() {
     // Select random payment method
     const method = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
     
-    // Random amount in USD (range $10-$500)
-    const amount = (Math.random() * 490 + 10).toFixed(2);
+    // Random amount in USD (range $1-$1000)
+    const amount = (Math.random() * 999 + 1).toFixed(2);
     
-    // Random sender/receiver
-    const senders = ['Anonymous', 'User123', 'Customer456', 'Unknown'];
-    const receivers = ['Anonymous', 'Receiver789', 'Business', 'Unknown'];
+    // Random sender/receiver from arrays
+    const senders = [
+      'Anonymous', 'User123', 'Customer456', 'Unknown', 'Buyer789',
+      'Seller123', 'Client456', 'Member789', 'Partner001', 'Vendor999'
+    ];
+    const receivers = [
+      'Anonymous', 'Receiver789', 'Business', 'Unknown', 'Customer123',
+      'User456', 'Client789', 'Member001', 'Vendor999', 'Partner888'
+    ];
     const sender = senders[Math.floor(Math.random() * senders.length)];
     const receiver = receivers[Math.floor(Math.random() * receivers.length)];
     
     // Random transaction hash
     const txHash = '0x' + Math.floor(Math.random() * 9999999999).toString(16).padStart(10, '0');
     
-    // Create embed matching the requested format
+    // Determine if crypto and create appropriate embed
+    const isCrypto = method.isCrypto;
+    
     const embed = new EmbedBuilder()
-      .setColor('#0099ff')
+      .setColor(isCrypto ? '#f7c6c7' : '#0099ff')
       .setTitle(`${method.name.toUpperCase()} Deal Complete`)
       .addFields(
         { name: 'Amount', value: `$${amount} (USD)`, inline: true },
         { name: 'Sender', value: sender, inline: true },
         { name: 'Receiver', value: receiver, inline: true }
-      )
-      .setTimestamp();
+      );
     
-    // Add transaction hash field for crypto methods
-    if (method.name === 'litecoin' || method.name === 'bitcoin' || method.name === 'ethereum') {
+    // Add transaction hash for crypto methods
+    if (isCrypto) {
       embed.addFields({ name: 'Transaction', value: txHash, inline: false });
+      embed.setThumbnail(`https://cryptologos.cc/logos/${method.name}.png`);
+    }
+    
+    // Add payment method symbol
+    if (!isCrypto) {
+      embed.addFields({ name: 'Payment Symbol', value: method.symbol, inline: true });
     }
     
     channel.send({ embeds: [embed] }).catch(console.error);
@@ -278,10 +304,10 @@ client.on('messageCreate', async message => {
     
     // Select random payment method
     const method = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
-    const amount = (Math.random() * 490 + 10).toFixed(2);
+    const amount = (Math.random() * 999 + 1).toFixed(2);
     
     const embed = new EmbedBuilder()
-      .setColor('#0099ff')
+      .setColor(method.isCrypto ? '#f7c6c7' : '#0099ff')
       .setTitle(`${method.name.toUpperCase()} Deal Complete`)
       .addFields(
         { name: 'Amount', value: `$${amount} (USD)`, inline: true },
@@ -290,9 +316,10 @@ client.on('messageCreate', async message => {
       );
     
     // Add transaction hash for crypto methods
-    if (method.name === 'litecoin' || method.name === 'bitcoin' || method.name === 'ethereum') {
+    if (method.isCrypto) {
       const txHash = '0x' + Math.floor(Math.random() * 9999999999).toString(16).padStart(10, '0');
       embed.addFields({ name: 'Transaction', value: txHash });
+      embed.setThumbnail(`https://cryptologos.cc/logos/${method.name}.png`);
     }
     
     if (data.vouchChannel) {
