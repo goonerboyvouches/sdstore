@@ -49,13 +49,22 @@ function isAdmin(interaction) {
   return interaction.member.permissions.has('Administrator');
 }
 
-// Auto-deal scheduler - sends USDT/crypto deal embeds every 5-10 minutes randomly
+// Payment methods array - includes crypto and fiat
+const paymentMethods = [
+  { name: 'litecoin', symbol: 'LTC' },
+  { name: 'cashapp', symbol: '$' },
+  { name: 'zelle', symbol: 'Z' },
+  { name: 'venmo', symbol: '🅥' },
+  { name: 'usdt', symbol: '₿' },
+  { name: 'bitcoin', symbol: '₿' },
+  { name: 'ethereum', symbol: 'Ξ' },
+  { name: 'unidentified', symbol: '?' }
+];
+
+// Auto-deal scheduler - sends deal embeds every 5-10 minutes randomly
 function startAutoDeal() {
   const minInterval = 5 * 60 * 1000; // 5 minutes
   const maxInterval = 10 * 60 * 1000; // 10 minutes
-  
-  // Payment methods to randomly choose from
-  const paymentMethods = ['usdt', 'cashapp', 'paypal', 'venmo', 'unidentified'];
   
   function sendAutoDeal() {
     if (!data.vouchChannel) {
@@ -69,48 +78,36 @@ function startAutoDeal() {
       return;
     }
     
-    // Select random verified user or use Anonymous
-    const verifiedIds = data.verifiedUsers ? Object.keys(data.verifiedUsers).filter(id => {
-      const numericId = parseInt(id, 10);
-      return !isNaN(numericId) && numericId > 0;
-    }) : [];
+    // Select random payment method
+    const method = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
     
-    let selectedUser = null;
-    if (verifiedIds && verifiedIds.length > 0) {
-      selectedUser = verifiedIds[Math.floor(Math.random() * verifiedIds.length)];
-    } else {
-      selectedUser = '0'; // Use Anonymous
-    }
+    // Random amount in USD (range $10-$500)
+    const amount = (Math.random() * 490 + 10).toFixed(2);
     
-    const user = client.users.cache.get(selectedUser);
-    const sender = user ? user.tag : 'Anonymous';
-    const receiver = 'Anonymous';
+    // Random sender/receiver
+    const senders = ['Anonymous', 'User123', 'Customer456', 'Unknown'];
+    const receivers = ['Anonymous', 'Receiver789', 'Business', 'Unknown'];
+    const sender = senders[Math.floor(Math.random() * senders.length)];
+    const receiver = receivers[Math.floor(Math.random() * receivers.length)];
     
-    // Random payment method and amount
-    const paymentMethod = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
-    const amount = (Math.random() * 100 + 10).toFixed(2); // $10-$110
-    const txHash = '0xdbe0' + Math.floor(Math.random() * 999999).toString(16).padStart(6, '0');
+    // Random transaction hash
+    const txHash = '0x' + Math.floor(Math.random() * 9999999999).toString(16).padStart(10, '0');
     
-    // Image URL (Discord default or random)
-    const images = [
-      'https://discord.com/assets Discord.IO_logo_292.png',
-      'https://discord.com/assets misty_png.png',
-      'https://discord.com/assets play_button_png.png'
-    ];
-    const image = images[Math.floor(Math.random() * images.length)];
-    
+    // Create embed matching the requested format
     const embed = new EmbedBuilder()
       .setColor('#0099ff')
-      .setTitle('💰 Deal Completed')
-      .setDescription(`**Payment Method:** ${paymentMethod.toUpperCase()}`)
+      .setTitle(`${method.name.toUpperCase()} Deal Complete`)
       .addFields(
-        { name: 'Amount', value: `${amount} ${paymentMethod.toUpperCase()}` },
-        { name: 'Sender', value: sender },
-        { name: 'Receiver', value: receiver },
-        { name: 'Transaction', value: txHash, inline: true }
+        { name: 'Amount', value: `$${amount} (USD)`, inline: true },
+        { name: 'Sender', value: sender, inline: true },
+        { name: 'Receiver', value: receiver, inline: true }
       )
-      .setThumbnail(image)
       .setTimestamp();
+    
+    // Add transaction hash field for crypto methods
+    if (method.name === 'litecoin' || method.name === 'bitcoin' || method.name === 'ethereum') {
+      embed.addFields({ name: 'Transaction', value: txHash, inline: false });
+    }
     
     channel.send({ embeds: [embed] }).catch(console.error);
     
@@ -279,24 +276,24 @@ client.on('messageCreate', async message => {
       return message.reply('❌ Only administrators can use this command.');
     }
     
-    const paymentArg = args[0] || 'usdt';
-    const paymentMethod = paymentArg.toLowerCase();
-    const amount = args[1] || '55.00';
-    const sender = args[2] || 'Anonymous';
-    const receiver = args[3] || 'Anonymous';
-    const txHash = args[4] || '0xdbe0' + Math.floor(Math.random() * 999999).toString(16).padStart(6, '0');
+    // Select random payment method
+    const method = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
+    const amount = (Math.random() * 490 + 10).toFixed(2);
     
     const embed = new EmbedBuilder()
       .setColor('#0099ff')
-      .setTitle('💰 Deal Completed')
-      .setDescription(`**Payment Method:** ${paymentMethod.toUpperCase()}`)
+      .setTitle(`${method.name.toUpperCase()} Deal Complete`)
       .addFields(
-        { name: 'Amount', value: `${amount} ${paymentMethod.toUpperCase()}` },
-        { name: 'Sender', value: sender },
-        { name: 'Receiver', value: receiver },
-        { name: 'Transaction', value: txHash, inline: true }
-      )
-      .setTimestamp();
+        { name: 'Amount', value: `$${amount} (USD)`, inline: true },
+        { name: 'Sender', value: 'Anonymous', inline: true },
+        { name: 'Receiver', value: 'Anonymous', inline: true }
+      );
+    
+    // Add transaction hash for crypto methods
+    if (method.name === 'litecoin' || method.name === 'bitcoin' || method.name === 'ethereum') {
+      const txHash = '0x' + Math.floor(Math.random() * 9999999999).toString(16).padStart(10, '0');
+      embed.addFields({ name: 'Transaction', value: txHash });
+    }
     
     if (data.vouchChannel) {
       const channel = message.client.channels.cache.get(data.vouchChannel);
@@ -305,7 +302,7 @@ client.on('messageCreate', async message => {
       }
     }
     
-    message.reply(`✅ Deal embed sent to <#${data.vouchChannel}>`);
+    message.reply(`✅ ${method.name.toUpperCase()} deal embed sent to <#${data.vouchChannel}>`);
   }
 });
 
